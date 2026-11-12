@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en" style="background-color: #060b14; color: #f0f4fa;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#060b14">
+    <title>KSP Tools | Kerbal Space Program Mission Suite</title>
+    <meta name="description" content="A suite of interactive web tools, calculators, and orbital visualizers for Kerbal Space Program.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="expect" href="#main-content" blocking="render">
+    <link rel="stylesheet" href="assets/tool-theme.css">
+    <script type="speculationrules">
+    {
+        "prerender": [
+            {
+                "where": { "selector_matches": "a[href$='.html']:not([target='_blank'])" },
+                "eagerness": "moderate"
+            }
+        ]
+    }
+    </script>
+    <style>
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--deep-space);
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 3D Space Background Canvas (Subtle Soft Focus) */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(2px) brightness(0.82);
+            transform: scale(1.03);
+            will-change: transform;
+        }
+
+        /* Ambient Cosmic Vignette Overlay */
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 40%, rgba(6, 11, 20, 0.25) 0%, rgba(6, 11, 20, 0.72) 100%);
+        }
+
+        /* Foreground Wrapper */
+        .site-wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Hero Title Block with Frosted Glass Container */
+        header.hero {
+            padding: 2.75rem 2.25rem 2.25rem;
+            max-width: 840px;
+            margin: 3.5rem auto 2.25rem;
+            text-align: center;
+            width: 100%;
+            background: rgba(9, 17, 30, 0.84);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(36, 76, 140, 0.7);
+            border-radius: 16px;
+            box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.3rem, 6vw, 3.1rem);
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            line-height: 1.15;
+            margin-bottom: 0.85rem;
+            background: linear-gradient(135deg, #ffffff 30%, #c8d9ee 75%, var(--accent-gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .hero p.tagline {
+            color: #d8e2ee;
+            font-size: 1.08rem;
+            max-width: 640px;
+            margin: 0 auto;
+            line-height: 1.65;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Main Content */
+        main.content {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0.75rem 1.5rem 4rem;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        /* Filter Controls */
+        .search-container {
+            max-width: 560px;
+            margin: 0 auto 2.5rem;
+            position: relative;
+        }
+
+        /* input. matches the theme's input[type="text"] specificity, so these styles win. */
+        input.search-input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.85rem;
+            border-radius: 10px;
+            background: rgba(9, 17, 30, 0.90);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(36, 76, 140, 0.8);
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.6);
+            transition: all 0.2s ease;
+        }
+
+        input.search-input:focus {
+            border-color: var(--accent-blue);
+            background: rgba(13, 24, 42, 0.96);
+            box-shadow: 0 0 0 3px rgba(58, 130, 247, 0.25), 0 8px 24px -6px rgba(0, 0, 0, 0.6);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.95rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #93c5fd;
+            pointer-events: none;
+        }
+
+        /* Tool Grid - Centered */
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 440px));
+            justify-content: center;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        .tool-card {
+            background: rgba(9, 17, 30, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(36, 76, 140, 0.65);
+            border-radius: 14px;
+            padding: 1.75rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.7);
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--border-accent), var(--accent-gold));
+        }
+
+        .tool-card:hover {
+            background: rgba(14, 26, 46, 0.94);
+            border-color: var(--accent-blue);
+            transform: translateY(-3px);
+            box-shadow: 0 18px 44px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(58, 130, 247, 0.2);
+        }
+
+        .card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(36, 76, 140, 0.25);
+            border: 1px solid var(--border-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-blue);
+        }
+
+        .card-icon.gold {
+            background: rgba(197, 155, 60, 0.15);
+            border-color: rgba(197, 155, 60, 0.35);
+            color: var(--accent-gold);
+        }
+
+        .card-icon.green {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.35);
+            color: var(--badge-green);
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+
+        .card-desc {
+            color: #cbd5e1;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        }
+
+        .btn-launch {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #184c8c 0%, #2563eb 100%);
+            color: #ffffff;
+            font-size: 0.88rem;
+            font-weight: 600;
+            padding: 0.7rem 1.35rem;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+            align-self: flex-start;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-launch:hover {
+            background: linear-gradient(135deg, #1d58a3 0%, #3b82f6 100%);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-launch.disabled {
+            background: rgba(28, 46, 74, 0.4);
+            color: var(--text-dim);
+            cursor: not-allowed;
+            border: 1px solid var(--border-subtle);
+        }
+
+        /* Site Footer */
+        footer.site-footer {
+            border-top: 1px solid rgba(36, 76, 140, 0.65);
+            padding: 1.6rem 1.5rem;
+            background: rgba(4, 8, 17, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            text-align: center;
+            font-size: 0.86rem;
+            color: #94a3b8;
+            margin-top: auto;
+        }
+
+        footer.site-footer a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+
+        footer.site-footer a:hover {
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Blurred Space Background Canvas & Cosmic Scrim -->
+    <canvas id="bg-canvas" aria-hidden="true"></canvas>
+    <div class="bg-overlay" aria-hidden="true"></div>
+
+    <div class="site-wrapper">
+    <!-- Hero Title & Description Block with Frosted Glass Container -->
+    <header class="hero">
+        <h1>KSP Tools</h1>
+        <p class="tagline">Interactive calculators, trajectory visualizers, and mission planning utilities designed for Kerbal Space Program.</p>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="content" id="main-content">
+        <!-- Search Filter -->
+        <div class="search-container">
+            <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="search-input" id="search-box" placeholder="Search mission tools..." aria-label="Search tools">
+        </div>
+
+        <!-- Tool Catalog -->
+        <div class="tool-grid" id="tool-grid">
+            <!-- Resonant Orbit Calculator -->
+            <div class="tool-card" data-tags="resonant orbit commnet constellation relay satellites injection delta v apoapsis periapsis period synchronous minimum los dive orbit">
+                <div class="card-top">
+                    <div class="card-icon green">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <circle cx="12" cy="12" r="9" stroke-dasharray="4,4"></circle>
+                            <ellipse cx="12" cy="12" rx="9" ry="5.5" transform="rotate(-30 12 12)"></ellipse>
+                        </svg>
+                    </div>
+                </div>
+                <h2 class="card-title">Resonant Orbit Calculator</h2>
+                <p class="card-desc">Calculate the exact resonant orbit, carrier apoapsis/periapsis, and injection delta-v needed to deploy equidistant satellite constellations.</p>
+                <a href="orbits/resonant-orbits.html" class="btn-launch">
+                    <span>Launch Calculator</span>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </a>
+            </div>
+
+            <!-- Solar System Delta-V Map -->
+            <div class="tool-card" data-tags="delta v map subway budget kerbin mun minmus duna eve jool laythe moho dres eeloo transfer capture landing return staging aerobraking solar system route planner">
+                <div class="card-top">
+                    <div class="card-icon gold">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                    </div>
+                </div>
+                <h2 class="card-title">Solar System Δv Map & Mission Planner</h2>
+                <p class="card-desc">Interactive vector subway map and mission route calculator with shortest-path budgets, aerobraking savings, round-trip calculations, and transfer itineraries.</p>
+                <a href="delta-v/map.html" class="btn-launch">
+                    <span>Launch Map & Planner</span>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </a>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Site Footer -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <p><a href="https://github.com/brantleyforrest/KSP-Tools" target="_blank" rel="noopener">GitHub Repository</a> | <a href="LICENSE">GPLv3 License</a></p>
+        </div>
+    </footer>
+    </div><!-- End site-wrapper -->
+
+    <!-- Three.js from CDN for 3D Blurred Space Background -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="assets/space-bg.js"></script>
+
+    <script>
+    // Live Search Filter
+    const searchBox = document.getElementById('search-box');
+    const cards = document.querySelectorAll('.tool-card');
+
+    searchBox.addEventListener('input', function() {
+        const query = this.value.trim().toLowerCase();
+        cards.forEach(card => {
+            const title = card.querySelector('.card-title').textContent.toLowerCase();
+            const desc = card.querySelector('.card-desc').textContent.toLowerCase();
+            const tags = (card.getAttribute('data-tags') || '').toLowerCase();
+            const matches = title.includes(query) || desc.includes(query) || tags.includes(query);
+            card.style.display = matches ? 'flex' : 'none';
+        });
+    });
+    </script>
+</body>
+</html>
